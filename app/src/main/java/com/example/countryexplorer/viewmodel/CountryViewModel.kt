@@ -5,20 +5,57 @@ import androidx.lifecycle.viewModelScope
 import com.example.countryexplorer.api.ApiClient
 import com.example.countryexplorer.api.Country
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class CountryViewModel : ViewModel() {
 
+    // All countries
     private val _countries = MutableStateFlow<List<Country>>(emptyList())
     val countries: StateFlow<List<Country>> = _countries
 
+    // Loading state
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
+    // Error message
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
 
+    // Search text
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery
+
+    // Filter countries based on search
+    val filteredCountries: StateFlow<List<Country>> =
+        combine(_countries, _searchQuery) { countries, query ->
+
+            if (query.isBlank()) {
+                countries
+            } else {
+                countries.filter { country ->
+                    country.names.common.contains(
+                        query,
+                        ignoreCase = true
+                    )
+                }
+            }
+
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    // Update search text
+    fun updateSearchQuery(query: String) {
+        _searchQuery.value = query
+    }
+
+    // Load countries
     fun loadCountries() {
 
         if (_isLoading.value) return

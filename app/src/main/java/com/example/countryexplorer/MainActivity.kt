@@ -21,7 +21,9 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -58,6 +60,9 @@ fun CountryScreen(
 ) {
 
     val countries by viewModel.countries.collectAsStateWithLifecycle()
+    val filteredCountries by viewModel.filteredCountries.collectAsStateWithLifecycle()
+    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
 
@@ -74,6 +79,7 @@ fun CountryScreen(
         // -------------------------
         // LOADING
         // -------------------------
+
         isLoading -> {
 
             Column(
@@ -97,6 +103,7 @@ fun CountryScreen(
         // -------------------------
         // ERROR
         // -------------------------
+
         error != null -> {
 
             Column(
@@ -125,6 +132,7 @@ fun CountryScreen(
         // -------------------------
         // EMPTY
         // -------------------------
+
         countries.isEmpty() -> {
 
             Column(
@@ -142,6 +150,7 @@ fun CountryScreen(
         // -------------------------
         // COUNTRY LIST
         // -------------------------
+
         else -> {
 
             Column(
@@ -173,9 +182,48 @@ fun CountryScreen(
                     )
 
                     Text(
-                        text = "${countries.size} countries",
+                        text = "${filteredCountries.size} countries",
                         style = MaterialTheme.typography.bodyMedium
                     )
+
+                    Spacer(
+                        modifier = Modifier.height(12.dp)
+                    )
+
+                    // -------------------------
+                    // SEARCH BAR
+                    // -------------------------
+
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = {
+                            viewModel.updateSearchQuery(it)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = {
+                            Text("Search country")
+                        },
+                        placeholder = {
+                            Text("Enter country name")
+                        },
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+
+                                TextButton(
+                                    onClick = {
+                                        viewModel.updateSearchQuery("")
+                                    }
+                                ) {
+                                    Text("Clear")
+                                }
+                            }
+                        }
+                    )
+
+                    // -------------------------
+                    // SELECTED COUNTRY
+                    // -------------------------
 
                     if (selectedCountry != null) {
 
@@ -191,36 +239,67 @@ fun CountryScreen(
                 }
 
                 // -------------------------
-                // SCROLLABLE LIST
+                // SEARCH RESULTS
                 // -------------------------
 
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                if (filteredCountries.isEmpty()) {
 
-                    contentPadding = PaddingValues(
-                        start = 16.dp,
-                        end = 16.dp,
-                        top = 8.dp,
-                        bottom = 24.dp
-                    ),
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
 
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-
-                    items(
-                        items = countries,
-                        key = { country ->
-                            country.names.common
-                        }
-                    ) { country ->
-
-                        CountryCard(
-                            country = country,
-                            isSelected = selectedCountry == country,
-                            onClick = {
-                                selectedCountry = country
-                            }
+                        Text(
+                            text = "No countries found",
+                            style = MaterialTheme.typography.titleMedium
                         )
+
+                        Spacer(
+                            modifier = Modifier.height(8.dp)
+                        )
+
+                        Text(
+                            text = "Try a different country name"
+                        )
+                    }
+
+                } else {
+
+                    // -------------------------
+                    // SCROLLABLE LIST
+                    // -------------------------
+
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+
+                        contentPadding = PaddingValues(
+                            start = 16.dp,
+                            end = 16.dp,
+                            top = 8.dp,
+                            bottom = 24.dp
+                        ),
+
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+
+                        items(
+                            items = filteredCountries,
+                            key = { country ->
+                                country.names.common
+                            }
+                        ) { country ->
+
+                            CountryCard(
+                                country = country,
+                                isSelected = selectedCountry == country,
+                                onClick = {
+                                    selectedCountry = country
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -245,12 +324,16 @@ fun CountryCard(
         shape = RoundedCornerShape(16.dp),
 
         colors = CardDefaults.cardColors(
-            containerColor =
-                if (isSelected) {
-                    MaterialTheme.colorScheme.primaryContainer
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant
+            containerColor = if (isSelected) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                when (kotlin.math.abs(country.names.common.hashCode()) % 4) {
+                    0 -> MaterialTheme.colorScheme.primaryContainer
+                    1 -> MaterialTheme.colorScheme.secondaryContainer
+                    2 -> MaterialTheme.colorScheme.tertiaryContainer
+                    else -> MaterialTheme.colorScheme.errorContainer
                 }
+            }
         ),
 
         elevation = CardDefaults.cardElevation(
